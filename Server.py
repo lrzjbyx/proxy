@@ -412,8 +412,8 @@ class Server():
 
 port_agents = [
     {
-        "user": 'laufeng@gs.zzu.edu.cn',
-        "delegation_port": 3306,
+        "user": 'xxxxx',
+        "delegation_port": 3389,
         "agent_port": 9898,
         "state": 'open'
     }

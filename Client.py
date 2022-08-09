@@ -7,11 +7,11 @@ import copy
 
 class Client():
 
-    def __init__(self, delegation_ip, agent_port, heart_beat_port):
+    def __init__(self, proxy_ip, delegate_port, heart_beat_port):
         # 委托 ip
-        self.delegation_ip = delegation_ip
+        self.proxy_ip = proxy_ip
         # 代理端口
-        self.agent_port = agent_port
+        self.delegate_port = delegate_port
         # 心跳检测端口
         self.heart_beat_port = heart_beat_port
         # 心跳连接
@@ -117,9 +117,9 @@ class Client():
                         if (self.forward_conn is None and self.agent_conn is None) or (
                                 self.forward_conn.fileno() == -1 and self.agent_conn.fileno() == -1):
 
-                            self.forward_conn = self.create_conn(self.delegation_ip, self.forward_port)
+                            self.forward_conn = self.create_conn(self.proxy_ip, self.forward_port)
 
-                            self.agent_conn = self.create_conn('127.0.0.1', self.agent_port)
+                            self.agent_conn = self.create_conn('127.0.0.1', self.delegate_port)
 
                             print("[INFO] {0}:{1} <----> {2}:{3} 传输通道连接成功".format(self.agent_conn.getsockname()[0],
                                                                    self.agent_conn.getsockname()[1],self.forward_conn.getsockname()[0],self.forward_conn.getsockname()[1]))
@@ -165,7 +165,7 @@ class Client():
             time.sleep(3)
 
     def start_heart_beat_conn(self):
-        self.heart_beat_conn = self.create_conn(self.delegation_ip, self.heart_beat_port)
+        self.heart_beat_conn = self.create_conn(self.proxy_ip, self.heart_beat_port)
         if self.heart_beat_conn is None:
             print("[INFO] 委托主机拒绝连接")
             return
@@ -197,7 +197,7 @@ class Client():
                     if bytes('S_COMM_CONN_PORT', encoding='utf-8') in heat_beat_msg:
                         if self.command_conn is None or self.command_conn.fileno() == -1:
                             self.command_port = int(heat_beat_msg.decode(encoding='utf-8').split(":")[1])
-                            self.command_conn = self.create_conn(self.delegation_ip, self.command_port)
+                            self.command_conn = self.create_conn(self.proxy_ip, self.command_port)
                             if self.command_conn is None:
                                 print("[INFO] 委托主机拒绝连接")
                                 continue
@@ -211,7 +211,7 @@ class Client():
                             self.threads["command_thread"] = t1
 
                             self.heart_beat_conn.send(bytes('HELLO', encoding='utf-8'))
-                            self.command_conn.send(bytes('DELEGATION:{0}'.format(self.agent_port), encoding='utf-8'))
+                            self.command_conn.send(bytes('DELEGATION:{0}'.format(self.delegate_port), encoding='utf-8'))
 
 
                     elif bytes('OK', encoding='utf-8') == heat_beat_msg:
@@ -224,11 +224,11 @@ class Client():
 
 
 class ManageClient():
-    def __init__(self,delegation_ip,agent_port,heart_beat_port):
-        self.delegation_ip = delegation_ip
-        self.agent_port = agent_port
+    def __init__(self,port_agents,heart_beat_port=9999):
+        self.proxy_ip = port_agents["proxy_ip"]
+        self.delegate_port = port_agents["delegation_port"]
         self.heart_beat_port = heart_beat_port
-        self.client = Client(self.delegation_ip, self.agent_port, self.heart_beat_port)
+        self.client = Client(self.proxy_ip, self.delegate_port, self.heart_beat_port)
         self.awake_time_second = 10
 
     def run(self):
@@ -237,11 +237,19 @@ class ManageClient():
             try:
                 self.client.start_heart_beat_conn()
             except:
-                self.client = Client(self.delegation_ip, self.agent_port, self.heart_beat_port)
+                self.client = Client(self.proxy_ip, self.delegate_port, self.heart_beat_port)
 
             time.sleep(self.awake_time_second)
             print("[INFO] 主机正在进行{0}次重连尝试".format(count))
             count+=1
 
 
-ManageClient("127.0.0.1", 3389, 9999).run()
+port_agents = [
+    {
+        "user": 'xxxxx',
+        "proxy_ip": '112.26.85.126',
+        "delegation_port": 3389,
+        "state": 'open'
+    }
+]
+ManageClient(port_agents).run()
